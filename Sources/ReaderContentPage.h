@@ -29,6 +29,8 @@
 
 - (id)initWithURL:(NSURL *)fileURL page:(NSInteger)page password:(NSString *)phrase;
 
+- (id)initWithData:(NSData *)fileData page:(NSInteger)page password:(NSString *)phrase;
+
 - (id)processSingleTap:(UITapGestureRecognizer *)recognizer;
 
 @end

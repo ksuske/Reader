@@ -176,8 +176,9 @@
 
 	NSString *filePath = [pdfs lastObject]; assert(filePath != nil); // Path to last PDF file
 
-	ReaderDocument *document = [ReaderDocument withDocumentFilePath:filePath password:phrase];
-
+	//ReaderDocument *document = [ReaderDocument withDocumentFilePath:filePath password:phrase];
+    ReaderDocument *document = [ReaderDocument withDocumentData:[NSData dataWithContentsOfFile:filePath] password:phrase];
+    
 	if (document != nil) // Must have a valid ReaderDocument object in order to proceed with things
 	{
 		ReaderViewController *readerViewController = [[ReaderViewController alloc] initWithReaderDocument:document];

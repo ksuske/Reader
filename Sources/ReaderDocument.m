@@ -26,6 +26,7 @@
 #import "ReaderDocument.h"
 #import "CGPDFDocument.h"
 #import <fcntl.h>
+#import <CommonCrypto/CommonDigest.h>
 
 @implementation ReaderDocument
 {
@@ -48,6 +49,8 @@
 	NSString *_password;
 
 	NSURL *_fileURL;
+    
+    NSData *_pdfData;
 }
 
 #pragma mark Properties
@@ -60,6 +63,7 @@
 @synthesize bookmarks = _bookmarks;
 @synthesize lastOpen = _lastOpen;
 @synthesize password = _password;
+@synthesize pdfData = _pdfData;
 @dynamic fileName, fileURL;
 
 #pragma mark ReaderDocument class methods
@@ -153,6 +157,37 @@
 	return document;
 }
 
++ (ReaderDocument *)unarchiveFromData:(NSData *)fileData password:(NSString *)phrase
+{
+#ifdef DEBUGX
+    NSLog(@"%s", __FUNCTION__);
+#endif
+    
+    ReaderDocument *document = nil; // ReaderDocument object
+    
+    NSString *withName = [ReaderDocument md5:[fileData description]]; //md5 of hexidecimal data this provides a unique name per nsdata
+    
+    NSString *archiveFilePath = [ReaderDocument archiveFilePath:withName];
+    
+    @try // Unarchive an archived ReaderDocument object from its property list
+    {
+        document = [NSKeyedUnarchiver unarchiveObjectWithFile:archiveFilePath];
+        
+        if ((document != nil) && (phrase != nil)) // Set the document password
+        {
+            [document setValue:[phrase copy] forKey:@"password"];
+        }
+    }
+    @catch (NSException *exception) // Exception handling (just in case O_o)
+    {
+#ifdef DEBUG
+        NSLog(@"%s Caught %@: %@", __FUNCTION__, [exception name], [exception reason]);
+#endif
+    }
+    
+    return document;
+}
+
 + (ReaderDocument *)withDocumentFilePath:(NSString *)filePath password:(NSString *)phrase
 {
 	ReaderDocument *document = nil; // ReaderDocument object
@@ -165,6 +200,28 @@
 	}
 
 	return document;
+}
+
++ (ReaderDocument *)withDocumentData:(NSData *)fileData password:(NSString *)phrase
+{
+#ifdef DEBUGX
+    NSLog(@"%s", __FUNCTION__);
+#endif
+    
+    ReaderDocument *document = nil; // ReaderDocument object
+    
+    document = [ReaderDocument unarchiveFromData:fileData password:phrase];
+    
+    if (document == nil) // Unarchive failed so we create a new ReaderDocument object
+    {
+        document = [[ReaderDocument alloc] initWithFileData:fileData password:phrase];
+    }
+    else
+    {
+        document.pdfData = fileData;
+    }
+    
+    return document;
 }
 
 + (BOOL)isPDF:(NSString *)filePath
@@ -211,6 +268,8 @@
 			_pageNumber = [NSNumber numberWithInteger:1]; // Start on page 1
 
 			_fileName = [ReaderDocument relativeFilePath:fullFilePath]; // File name
+            
+            _pdfData = nil;
 
 			CFURLRef docURLRef = (__bridge CFURLRef)[self fileURL]; // CFURLRef from NSURL
 
@@ -246,6 +305,97 @@
 	}
 
 	return object;
+}
+
+- (id)initWithFileData:(NSData *)fileData password:(NSString *)phrase
+{
+#ifdef DEBUGX
+    NSLog(@"%s", __FUNCTION__);
+#endif
+    
+    id object = nil; // ReaderDocument object
+    
+    //        if ([ReaderDocument isPDF:fullFilePath] == YES) // File must exist
+    {
+        if ((self = [super init])) // Initialize the superclass object first
+        {
+            _guid = [ReaderDocument GUID]; // Create a document GUID
+            
+            _password = [phrase copy]; // Keep a copy of any document password
+            
+            _bookmarks = [NSMutableIndexSet new]; // Bookmarked pages index set
+            
+            _pageNumber = [NSNumber numberWithInteger:1]; // Start page 1
+            
+            //                        _fileName = [[ReaderDocument relativeFilePath:fullFilePath] retain];
+            _fileName = [ReaderDocument md5:[fileData description]];
+            _pdfData = fileData;
+            
+            //                        CFURLRef docURLRef = (CFURLRef)[self fileURL]; // CFURLRef from NSURL
+            
+            //                        CGPDFDocumentRef thePDFDocRef = CGPDFDocumentCreateX(docURLRef, _password);
+            
+            CGDataProviderRef docDataRef = CGDataProviderCreateWithCFData((CFDataRef)_pdfData);
+            
+            CGPDFDocumentRef thePDFDocRef = CGPDFDocumentCreateZ(docDataRef, _password);
+            
+            if (thePDFDocRef != NULL) // Get the number of pages in a document
+            {
+                NSInteger pageCount = CGPDFDocumentGetNumberOfPages(thePDFDocRef);
+                
+                _pageCount = [NSNumber numberWithInteger:pageCount];
+                
+                CGPDFDocumentRelease(thePDFDocRef); // Cleanup
+            }
+            else // Cupertino, we have a problem with the document
+            {
+                NSAssert(NO, @"CGPDFDocumentRef == NULL");
+            }
+            
+            _lastOpen = [NSDate dateWithTimeIntervalSinceReferenceDate:0.0]; // Last opened
+            
+            _fileDate = [NSDate date];
+            
+            _fileSize = [NSNumber numberWithUnsignedInteger:[_pdfData length]];
+            
+            [self saveReaderDocument]; // Save ReaderDocument object
+            
+            object = self; // Return initialized ReaderDocument object
+        }
+    }
+    
+    return object;
+}
+
++ (NSString *) md5: (NSString *)str
+{
+    const char *cStr = [str UTF8String];
+    
+    unsigned char result[CC_MD5_DIGEST_LENGTH];
+    
+    CC_MD5( cStr, strlen(cStr), result );
+    
+    return [NSString
+            
+            stringWithFormat: @"%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X",
+            
+            result[0], result[1],
+            
+            result[2], result[3],
+            
+            result[4], result[5],
+            
+            result[6], result[7],
+            
+            result[8], result[9],
+            
+            result[10], result[11],
+            
+            result[12], result[13],
+            
+            result[14], result[15]
+            
+            ];
 }
 
 - (NSString *)fileName

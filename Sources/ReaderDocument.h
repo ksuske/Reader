@@ -37,12 +37,21 @@
 @property (nonatomic, strong, readonly) NSString *fileName;
 @property (nonatomic, strong, readonly) NSString *password;
 @property (nonatomic, strong, readonly) NSURL *fileURL;
+@property (nonatomic, retain, readwrite) NSData *pdfData;
 
 + (ReaderDocument *)withDocumentFilePath:(NSString *)filename password:(NSString *)phrase;
 
++ (ReaderDocument *)withDocumentData:(NSData *)fileData password:(NSString *)phrase;
+
 + (ReaderDocument *)unarchiveFromFileName:(NSString *)filename password:(NSString *)phrase;
 
++ (ReaderDocument *)unarchiveFromData:(NSData *)fileData password:(NSString *)phrase;
+
++ (NSString *) md5: (NSString *)str;
+
 - (id)initWithFilePath:(NSString *)fullFilePath password:(NSString *)phrase;
+
+- (id)initWithFileData:(NSData *)fileData password:(NSString *)phrase;
 
 - (void)saveReaderDocument;
 

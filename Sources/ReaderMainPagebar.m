@@ -107,10 +107,21 @@
 		pageThumbView.tag = page; [pageThumbView reuse]; // Reuse the thumb view
 
 		CGSize size = CGSizeMake(THUMB_LARGE_WIDTH, THUMB_LARGE_HEIGHT); // Maximum thumb size
-
-		NSURL *fileURL = document.fileURL; NSString *guid = document.guid; NSString *phrase = document.password;
-
-		ReaderThumbRequest *request = [ReaderThumbRequest newForView:pageThumbView fileURL:fileURL password:phrase guid:guid page:page size:size];
+        
+        ReaderThumbRequest *request = nil;
+        NSString *guid = document.guid; NSString *phrase = document.password;
+        if(document.pdfData)
+        {
+            NSData *fileData = document.pdfData;
+            
+            request = [ReaderThumbRequest forView:pageThumbView fileData:fileData password:phrase guid:guid page:page size:size];
+        }
+        else
+        {
+            NSURL *fileURL = document.fileURL;
+            
+            request = [ReaderThumbRequest newForView:pageThumbView fileURL:fileURL password:phrase guid:guid page:page size:size];
+        }
 
 		UIImage *image = [[ReaderThumbCache sharedInstance] thumbRequest:request priority:YES]; // Request the thumb
 
@@ -281,11 +292,22 @@
 		{
 			CGSize size = CGSizeMake(THUMB_SMALL_WIDTH, THUMB_SMALL_HEIGHT); // Maximum thumb size
 
-			NSURL *fileURL = document.fileURL; NSString *guid = document.guid; NSString *phrase = document.password;
-
-			smallThumbView = [[ReaderPagebarThumb alloc] initWithFrame:thumbRect small:YES]; // Create a small thumb view
-
-			ReaderThumbRequest *thumbRequest = [ReaderThumbRequest newForView:smallThumbView fileURL:fileURL password:phrase guid:guid page:page size:size];
+			NSString *guid = document.guid; NSString *phrase = document.password;
+            
+            ReaderThumbRequest *thumbRequest = nil;
+            smallThumbView = [[ReaderPagebarThumb alloc] initWithFrame:thumbRect small:YES]; // Create a small thumb view
+            if(document.pdfData)
+            {
+                NSData *fileData = document.pdfData;
+                
+                thumbRequest = [ReaderThumbRequest forView:smallThumbView fileData:fileData password:phrase guid:guid page:page size:size];
+            }
+            else
+            {
+                NSURL *fileURL = document.fileURL;
+                
+                thumbRequest = [ReaderThumbRequest newForView:smallThumbView fileURL:fileURL password:phrase guid:guid page:page size:size];
+            }
 
 			UIImage *image = [[ReaderThumbCache sharedInstance] thumbRequest:thumbRequest priority:NO]; // Request the thumb
 

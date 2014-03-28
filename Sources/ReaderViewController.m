@@ -177,11 +177,21 @@
 
 			if (contentView == nil) // Create a brand new document content view
 			{
-				NSURL *fileURL = document.fileURL; NSString *phrase = document.password; // Document properties
-
-				contentView = [[ReaderContentView alloc] initWithFrame:viewRect fileURL:fileURL page:number password:phrase];
-
-				[theScrollView addSubview:contentView]; [contentViews setObject:contentView forKey:key];
+				NSString *phrase = document.password; // Document properties
+                if(document.pdfData)
+                {
+                    NSData *data = document.pdfData;
+                    
+                    contentView = [[ReaderContentView alloc] initWithFrame:viewRect fileData:data page:number password:phrase];
+                }
+                else
+                {
+                    NSURL *fileURL = document.fileURL;
+                    
+                    contentView = [[ReaderContentView alloc] initWithFrame:viewRect fileURL:fileURL page:number password:phrase];
+                    
+                }
+                [theScrollView addSubview:contentView]; [contentViews setObject:contentView forKey:key];
 
 				contentView.message = self; [newPageSet addIndex:number];
 			}
@@ -789,11 +799,17 @@
 
 	if ((printInteractionController != nil) && [printInteractionController isPrintingAvailable])
 	{
-		NSURL *fileURL = document.fileURL; // Document file URL
+		NSURL *fileURL = nil;
+        NSData *fileData = nil;
+        if(document.pdfData)
+        {
+            fileData = document.pdfData;
+        }
+        else  fileURL = document.fileURL; // Document file URL
 
 		printInteraction = [printInteractionController sharedPrintController];
 
-		if ([printInteractionController canPrintURL:fileURL] == YES) // Check first
+		if (([printInteractionController canPrintURL:fileURL] == YES) || ([printInteractionController canPrintData:fileData] == YES)) // Check first
 		{
 			UIPrintInfo *printInfo = [NSClassFromString(@"UIPrintInfo") printInfo];
 
@@ -802,7 +818,7 @@
 			printInfo.jobName = document.fileName;
 
 			printInteraction.printInfo = printInfo;
-			printInteraction.printingItem = fileURL;
+			printInteraction.printingItem = (fileData?fileData:fileURL);
 			printInteraction.showsPageRange = YES;
 
 			if ([UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPad)
@@ -841,13 +857,27 @@
 
 	if (printInteraction != nil) [printInteraction dismissAnimated:YES];
 
-	unsigned long long fileSize = [document.fileSize unsignedLongLongValue];
+	unsigned long long fileSize = 0;
+    if(document.pdfData) {
+        fileSize = (unsigned long long)[document.pdfData length];
+    } else fileSize = [document.fileSize unsignedLongLongValue];
 
 	if (fileSize < (unsigned long long)15728640) // Check attachment size limit (15MB)
 	{
-		NSURL *fileURL = document.fileURL; NSString *fileName = document.fileName; // Document
-
-		NSData *attachment = [NSData dataWithContentsOfURL:fileURL options:(NSDataReadingMapped|NSDataReadingUncached) error:nil];
+		NSURL *fileURL = nil;
+        NSData *fileData = nil;
+        if(document.pdfData)
+        {
+            fileData = document.pdfData;
+        }
+        else
+        {
+            fileURL = document.fileURL;
+        }
+        
+        NSString *fileName = document.fileName; // Document
+        
+        NSData *attachment = (fileData?fileData:[NSData dataWithContentsOfURL:fileURL options:(NSDataReadingMapped|NSDataReadingUncached) error:nil]);
 
 		if (attachment != nil) // Ensure that we have valid document file attachment data
 		{
